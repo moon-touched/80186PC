@@ -111,6 +111,8 @@ void HypervisorCPUEmulation::cpu0Thread() {
 				val.PendingInterruption.InterruptionPending = 1;
 				val.PendingInterruption.InterruptionType = WHvX64PendingInterrupt;
 				val.PendingInterruption.InterruptionVector = interruptController()->processInterruptAcknowledge();
+				if(val.PendingInterruption.InterruptionVector != 8)
+					printf("Vectoring CPU at %02X\n", val.PendingInterruption.InterruptionVector);
 				m_partition.setRegisters(0, &reg, 1, &val);
 				break;
 			}

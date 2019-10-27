@@ -30,7 +30,7 @@ void PIT::write8(uint64_t address, uint8_t mask, uint8_t data) {
 
 	printf("PIT: write: %02llX, %02X\n", address, data);
 
-	switch (address) {
+	switch (address & 3) {
 	case 0:
 		if (m_byte) {
 			{
@@ -53,15 +53,15 @@ void PIT::write8(uint64_t address, uint8_t mask, uint8_t data) {
 		}
 		else {
 			fprintf(stderr, "PIT emulation is very limited at the moment and only supports control byte 0x34\n");
-			if (IsDebuggerPresent())
-				__debugbreak();
+			//if (IsDebuggerPresent())
+			//	__debugbreak();
 		}
 		break;
 
 	default:
 		fprintf(stderr, "PIT emulation is very limited at the moment and only supports channel 0\n");
-		if (IsDebuggerPresent())
-			__debugbreak();
+		//if (IsDebuggerPresent())
+		//	__debugbreak();
 	}
 }
 
@@ -81,24 +81,26 @@ uint8_t PIT::read8(uint64_t address, uint8_t mask) {
 void PIT::pitThread() {
 	std::unique_lock locker(m_pitThreadMutex);
 	while (m_runPITThread) {
-		auto freq = m_compareValue;
+		unsigned int freq = m_compareValue;
 
 		if (freq == 0) {
-			m_pitThreadCondvar.wait(locker);
+			freq = 65536;
+		}
+
+		std::chrono::microseconds delay(freq * 1000000 / 1193182);
+		if (m_pitThreadCondvar.wait_for(locker, delay, [this]() { return m_pitThreadAlert || !m_runPITThread; })) {
+			m_pitThreadAlert = false;
 		}
 		else {
-			std::chrono::microseconds delay(freq * 1000000 / 1125000);
-			if (m_pitThreadCondvar.wait_for(locker, delay, [this]() { return m_pitThreadAlert || !m_runPITThread; })) {
-				m_pitThreadAlert = false;
+			locker.unlock();
+
+			auto line = m_interruptLine.load();
+			if (line) {
+				line->setInterruptAsserted(true);
+				line->setInterruptAsserted(false);
 			}
-			else {
-				locker.unlock();
 
-				m_interruptLine->setInterruptAsserted(true);
-				m_interruptLine->setInterruptAsserted(false);
-
-				locker.lock();
-			}			
-		}
+			locker.lock();
+		}		
 	}
 }

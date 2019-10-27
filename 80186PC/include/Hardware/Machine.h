@@ -18,11 +18,18 @@
 //#include <IDE/IDEControllerChannel.h>
 //#include <Hardware/SerialPort.h>
 //#include <Hardware/SuperIO.h>
+#include <Hardware/HerculesVideo.h>
+#include <Hardware/NMIControl.h>
+#include <Hardware/PPI.h>
+#include <Hardware/PPIConsumer.h>
+#include <Hardware/XTIDE.h>
+#include <ATA/ATADemux.h>
+#include <ATA/ATAHardDisk.h>
 
 class CPUEmulation;
 
 #define RAM_FILE
-class Machine {
+class Machine final : private PPIConsumer {
 public:
 	Machine();
 	~Machine();
@@ -30,18 +37,31 @@ public:
 	Machine(const Machine& other) = delete;
 	Machine& operator =(const Machine& other) = delete;
 
+	inline VideoAdapter* videoAdapter() {
+		return &m_hercules;
+	}
+
 private:
 	static constexpr uint64_t RAMAreaBase = 0ULL;
 
-	static constexpr uint64_t RAMAreaEnd = 0xA0000ULL;
-	static constexpr uint64_t BIOSAreaBase = 0xFE000ULL;
+	static constexpr uint64_t RAMAreaEnd = 0xC0000ULL;
+	static constexpr uint64_t BIOSAreaBase = 0xFC000ULL;
 	static constexpr uint64_t BIOSAreaEnd = 0x100000ULL;
+
+	uint8_t readPortA(uint8_t mask) const override;
+	void writePortA(uint8_t value, uint8_t mask) override;
+
+	uint8_t readPortB(uint8_t mask) const override;
+	void writePortB(uint8_t value, uint8_t mask) override;
+
+	uint8_t readPortC(uint8_t mask) const override;
+	void writePortC(uint8_t value, uint8_t mask) override;
 
 	std::unique_ptr<CPUEmulation> m_cpu;
 	AddressSpaceDispatcher m_mmioDispatcher;
 	AddressSpaceDispatcher m_ioDispatcher;
 	PIC m_primaryPIC;
-	PIC m_secondaryPIC;
+	//PIC m_secondaryPIC;
 	RTC m_rtc;
 	PIT m_pit;
 	//IDEControllerChannel m_primaryIDE;
@@ -50,6 +70,12 @@ private:
 	//PCIConfigurationSpaceAccess m_pciConfigAccess;
 	//SMBus m_smbus0;
 	//SMBus m_smbus1;
+	HerculesVideo m_hercules;
+	NMIControl m_nmiControl;
+	PPI m_ppi;
+	ATAHardDisk m_hdd;
+	ATADemux m_ataDemux;
+	XTIDE m_xtide;
 	WindowsHandle m_biosFile;
 	WindowsHandle m_biosMapping;
 	WindowsSectionView m_biosBase;
@@ -62,6 +88,8 @@ private:
 	WindowsMemoryRegion m_ram;
 #endif
 	std::optional<MappedAddressRange> m_ramAddressRange;
+	bool m_lowSwitches;
+	uint8_t m_switches;
 };
 
 #endif

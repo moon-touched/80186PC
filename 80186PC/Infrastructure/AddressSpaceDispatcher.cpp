@@ -112,8 +112,8 @@ void AddressSpaceDispatcher::write(uint64_t address, unsigned int accessSize, ui
 	auto handler = resolve(resolvedAddress);
 	if (!handler) {
 		fprintf(stderr, "%s: no handler is defined for write to address %08llX (data %08llX, length %02X)\n", m_name.c_str(), address, data, accessSize);
-		if (IsDebuggerPresent() && (!m_cpuEmulation || address >= 0x08000000))
-			__debugbreak();
+		//if (IsDebuggerPresent() && (!m_cpuEmulation || address >= 0x08000000))
+		//	__debugbreak();
 	}
 	else {
 		handler->write(resolvedAddress, accessSize, data);
@@ -126,8 +126,8 @@ uint64_t AddressSpaceDispatcher::read(uint64_t address, unsigned int accessSize)
 
 	if (!handler) {
 		fprintf(stderr, "%s: no handler is defined for read from address %08llX (length %02X)\n", m_name.c_str(), address, accessSize);
-		if (IsDebuggerPresent() && (!m_cpuEmulation || address >= 0x08000000))
-			__debugbreak();
+		//if (IsDebuggerPresent() && (!m_cpuEmulation || address >= 0x08000000))
+		//	__debugbreak();
 
 		return 0xFFFFFFFF;
 	}

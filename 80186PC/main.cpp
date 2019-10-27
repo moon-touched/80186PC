@@ -1,11 +1,17 @@
 #include <Hardware/Machine.h>
 
+#include <SDL.h>
+
+#include <UI/SDLUI.h>
 
 int main(int argc, char* argv[]) {
+	SDLUI ui;
+
 	Machine machine;
 
-	while (1)
-		Sleep(1000);
+	ui.setVideoAdapter(machine.videoAdapter());
+
+	ui.run();
 
 	return 0;
 }
