@@ -7,6 +7,9 @@ HypervisorCPUEmulation::HypervisorCPUEmulation() : m_cpu0Emulator(&m_partition, 
 	prop.ProcessorCount = 1;
 	m_partition.setProperty(WHvPartitionPropertyCodeProcessorCount, prop);
 
+	prop.LocalApicEmulationMode = WHvX64LocalApicEmulationModeXApic;
+	m_partition.setProperty(WHvPartitionPropertyCodeLocalApicEmulationMode, prop);
+
 	m_partition.setup();
 
 	m_partition.createVirtualProcessor(0);
@@ -90,11 +93,13 @@ void HypervisorCPUEmulation::mapMemory(uint64_t base, uint64_t limit, void* host
 	if (permissions & IAddressRangeHandler::AccessExecute)
 		flags |= WHvMapGpaRangeFlagExecute;
 
-	m_partition.mapGpaRange(hostMemory, base, limit - base, static_cast<WHV_MAP_GPA_RANGE_FLAGS>(flags));
+	m_partition.mapGpaRange(hostMemory, base & ~0x100000, limit - base, static_cast<WHV_MAP_GPA_RANGE_FLAGS>(flags));
+	m_partition.mapGpaRange(hostMemory, base |  0x100000, limit - base, static_cast<WHV_MAP_GPA_RANGE_FLAGS>(flags));
 }
 
 void HypervisorCPUEmulation::unmapMemory(uint64_t base, uint64_t limit) {
-	m_partition.unmapGpaRange(base, limit - base);
+	m_partition.unmapGpaRange(base & ~0x100000, limit - base);
+	m_partition.unmapGpaRange(base |  0x100000, limit - base);
 }
 
 void HypervisorCPUEmulation::cpu0Thread() {
@@ -105,7 +110,8 @@ void HypervisorCPUEmulation::cpu0Thread() {
 			switch (exit.ExitReason) {
 			case WHvRunVpExitReasonX64InterruptWindow:
 			{
-				WHV_REGISTER_NAME reg = WHvRegisterPendingInterruption;
+				WHV_REGISTER_NAME reg;
+				reg = WHvRegisterPendingInterruption;
 				WHV_REGISTER_VALUE val;
 				memset(&val, 0, sizeof(val));
 				val.PendingInterruption.InterruptionPending = 1;
@@ -133,6 +139,9 @@ void HypervisorCPUEmulation::setInterruptAsserted(bool interrupt) {
 	WHV_REGISTER_NAME reg = WHvX64RegisterDeliverabilityNotifications;
 	WHV_REGISTER_VALUE val;
 	memset(&val, 0, sizeof(val));
-	val.DeliverabilityNotifications.InterruptNotification = interrupt;
-	m_partition.setRegisters(0, &reg, 1, &val);
+	m_partition.getRegisters(0, &reg, 1, &val);
+	if (val.DeliverabilityNotifications.InterruptNotification != interrupt) {
+		val.DeliverabilityNotifications.InterruptNotification = interrupt;
+		m_partition.setRegisters(0, &reg, 1, &val);
+	}
 }

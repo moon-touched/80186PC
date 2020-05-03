@@ -125,6 +125,10 @@ bool HypervisorEmulator::processExit(WHV_RUN_VP_EXIT_CONTEXT& Context) {
 						return true;
 					}
 					else {
+						WHV_REGISTER_NAME regs[2]{ WHvX64RegisterRsp, WHvX64RegisterSs };
+						WHV_REGISTER_VALUE regvals[2];
+						m_partition->getRegisters(0, regs, 2, regvals);
+
 						if(IsDebuggerPresent())
 							__debugbreak();
 						return false;

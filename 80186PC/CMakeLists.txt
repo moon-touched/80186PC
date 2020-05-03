@@ -22,6 +22,7 @@ set(hardware_sources
 	include/Hardware/PPIConsumer.h
 	include/Hardware/RTC.h
 	include/Hardware/XTIDE.h
+	include/Hardware/XTKeyboard.h
 	Hardware/CPUEmulation.cpp
 	Hardware/CPUEmulationFactory.cpp
 	Hardware/HerculesVideo.cpp
@@ -33,6 +34,7 @@ set(hardware_sources
 	Hardware/PPIConsumer.cpp
 	Hardware/RTC.cpp
 	Hardware/XTIDE.cpp
+	Hardware/XTKeyboard.cpp
 
 )
 
@@ -66,8 +68,10 @@ set(infrastructure_sources
 )
 
 set(ui_sources 
+	include/UI/Keyboard.h
 	include/UI/SDLUI.h
 	include/UI/VideoAdapter.h
+	UI/Keyboard.cpp
 	UI/SDLUI.cpp
 	UI/VideoAdapter.cpp
 )

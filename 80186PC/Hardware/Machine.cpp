@@ -69,7 +69,7 @@ Machine::Machine() :
 		m_ramAddressRange.emplace(m_ramBase.get(), RAMAreaEnd - RAMAreaBase, MappedAddressRange::AccessRead | MappedAddressRange::AccessWrite | MappedAddressRange::AccessExecute);
 
 	#else
-		m_ramAddressRange.emplace(m_ram.base(), RAMAreaEnd - RAMAreaBase, MappedAddressRange::AccessRead | MappedAddressRange::AccessWrite | MappedAddressRange::AccessWrite);
+		m_ramAddressRange.emplace(m_ram.base(), RAMAreaEnd - RAMAreaBase, MappedAddressRange::AccessRead | MappedAddressRange::AccessWrite | MappedAddressRange::AccessExecute);
 	#endif
 
 	m_mmioDispatcher.registerAddressRange(
@@ -124,6 +124,7 @@ Machine::Machine() :
 	m_cpu->setInterruptController(&m_primaryPIC);
 	m_primaryPIC.setOutputInterruptLine(m_cpu.get());
 	m_pit.setInterruptLine(m_primaryPIC.line(0));
+	m_xtKeyboard.setInterruptLine(m_primaryPIC.line(1));
 	//m_secondaryPIC.setOutputInterruptLine(m_primaryPIC.line(2));
 	//m_primaryPIC.setSecondaryPIC(2, &m_secondaryPIC);
 	m_xtide.setInterruptLine(m_primaryPIC.line(7));
@@ -137,14 +138,14 @@ Machine::Machine() :
 Machine::~Machine() = default;
 
 uint8_t Machine::readPortA(uint8_t mask) const {
-	__debugbreak();
-	return 0xFF;
+	(void)mask;
+
+	return m_xtKeyboard.readDataByte();
 }
 
 void Machine::writePortA(uint8_t value, uint8_t mask) {
 	(void)value;
 	(void)mask;
-	__debugbreak();
 }
 
 uint8_t Machine::readPortB(uint8_t mask) const {
@@ -161,8 +162,9 @@ void Machine::writePortB(uint8_t value, uint8_t mask) {
 	m_lowSwitches = (value & (1 << 3)) == 0;
 	// 4 - RAM parity check
 	// 5 - I/O channel check
-	// 6 - hold keyboard clock low, if low
-	// 7 - reset keyboard, if high
+
+	m_xtKeyboard.setHold((value & (1 << 6)) != 0);
+	m_xtKeyboard.setReset((value & (1 << 7)) != 0);
 
 	printf("PPI: port B: %02X\n", value);
 }

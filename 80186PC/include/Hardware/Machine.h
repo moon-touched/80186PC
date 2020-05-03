@@ -25,10 +25,11 @@
 #include <Hardware/XTIDE.h>
 #include <ATA/ATADemux.h>
 #include <ATA/ATAHardDisk.h>
+#include <Hardware/XTKeyboard.h>
 
 class CPUEmulation;
 
-#define RAM_FILE
+//#define RAM_FILE
 class Machine final : private PPIConsumer {
 public:
 	Machine();
@@ -41,11 +42,15 @@ public:
 		return &m_hercules;
 	}
 
+	inline Keyboard* keyboard() {
+		return &m_xtKeyboard;
+	}
+
 private:
 	static constexpr uint64_t RAMAreaBase = 0ULL;
 
 	static constexpr uint64_t RAMAreaEnd = 0xC0000ULL;
-	static constexpr uint64_t BIOSAreaBase = 0xFC000ULL;
+	static constexpr uint64_t BIOSAreaBase = 0xF4000ULL;
 	static constexpr uint64_t BIOSAreaEnd = 0x100000ULL;
 
 	uint8_t readPortA(uint8_t mask) const override;
@@ -90,6 +95,7 @@ private:
 	std::optional<MappedAddressRange> m_ramAddressRange;
 	bool m_lowSwitches;
 	uint8_t m_switches;
+	mutable XTKeyboard m_xtKeyboard;
 };
 
 #endif

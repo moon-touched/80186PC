@@ -16,6 +16,8 @@ WindowsMemoryRegion::WindowsMemoryRegion(unsigned int length, DWORD protect) : m
 		auto error = HRESULT_FROM_WIN32(GetLastError());
 		_com_raise_error(error);
 	}
+
+	memset(m_base, 0, length);
 }
 
 WindowsMemoryRegion::~WindowsMemoryRegion() {

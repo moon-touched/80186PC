@@ -10,6 +10,7 @@ int main(int argc, char* argv[]) {
 	Machine machine;
 
 	ui.setVideoAdapter(machine.videoAdapter());
+	ui.setKeyboard(machine.keyboard());
 
 	ui.run();
 

@@ -81,7 +81,7 @@ uint8_t PIT::read8(uint64_t address, uint8_t mask) {
 void PIT::pitThread() {
 	std::unique_lock locker(m_pitThreadMutex);
 	while (m_runPITThread) {
-		unsigned int freq = m_compareValue;
+		uint64_t freq = m_compareValue;
 
 		if (freq == 0) {
 			freq = 65536;

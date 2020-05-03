@@ -38,7 +38,8 @@ void ATADevice::stopDriveThread() {
 		m_driveThreadCondvar.notify_all();
 	}
 
-	m_driveThread.join();
+	if(m_driveThread.joinable())
+		m_driveThread.join();
 }
 
 void ATADevice::write(CS cs, uint8_t address, uint16_t value) {

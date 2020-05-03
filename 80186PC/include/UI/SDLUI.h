@@ -10,6 +10,7 @@
 #include <array>
 
 class VideoAdapter;
+class Keyboard;
 
 class SDLUI final {
 public:
@@ -25,9 +26,13 @@ public:
 		m_videoAdapter = adapter;
 	}
 
+	inline void setKeyboard(Keyboard* keyboard) {
+		m_keyboard = keyboard;
+	}
+
 private:
-	/*void pushKeyboardEvent(const SDL_KeyboardEvent& ev);
-	void updateMouseButton(const SDL_MouseButtonEvent & ev);*/
+	void pushKeyboardEvent(const SDL_KeyboardEvent& ev);
+	/*void updateMouseButton(const SDL_MouseButtonEvent & ev);*/
 
 	struct SDLWindowDeleter {
 		void operator()(SDL_Window* window) const;
@@ -63,6 +68,7 @@ private:
 	std::unique_ptr<SDL_Window, SDLWindowDeleter> m_window;
 	std::unique_ptr<SDL_Surface, SDLSurfaceDeleter> m_screenSurface;
 	std::atomic<VideoAdapter*> m_videoAdapter;
+	std::atomic<Keyboard*> m_keyboard;
 	std::unique_ptr<SDL_Surface, SDLSurfaceDeleter> m_textModeFont;
 	std::array<std::unique_ptr<SDL_Palette, SDLPaletteDeleter>, PaletteCount> m_screenPalettes;
 	static const PaletteSpecification m_paletteSpecifications[PaletteCount];
