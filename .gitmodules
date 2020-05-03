@@ -1,0 +1,3 @@
+[submodule "80186PC/libx86emu"]
+	path = 80186PC/libx86emu
+	url = https://github.com/moon-touched/libx86emu.git

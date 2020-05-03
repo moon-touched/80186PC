@@ -39,10 +39,12 @@ protected:
 
 	virtual void resetDevice() = 0;
 	virtual void executeCommand(const ATACommand& command, ATACommandResult& result) = 0;
+	virtual void pioWriteFinished() = 0;
 
 	void stopDriveThread();
 
 	void pioRead(size_t size);
+	void pioWrite(size_t size);
 
 	inline uint8_t* transferBuffer() {
 		return m_transferBuffer.data();
@@ -59,7 +61,8 @@ protected:
 private:
 	enum class TransferState {
 		Idle,
-		PIORead
+		PIORead,
+		PIOWrite
 	};
 
 	void driveThread();

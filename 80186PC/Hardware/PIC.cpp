@@ -5,6 +5,8 @@
 #include <stdio.h>
 #include <assert.h>
 
+#undef TRACE_INTERRUPTS
+
 PIC::ELCR::ELCR(PIC* owner) : m_owner(owner), m_value(0) {
 
 }

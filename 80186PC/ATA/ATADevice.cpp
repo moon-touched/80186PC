@@ -52,6 +52,28 @@ void ATADevice::write(CS cs, uint8_t address, uint16_t value) {
 			return;
 		}
 		switch (address) {
+		case ATACS0_DATA:
+		{
+			if (m_transferState != TransferState::PIOWrite) {
+				fprintf(stderr, "ATADevice(%p): DATA write outside of PIO write cycle\n", this);
+				return;
+			}
+
+			if (!m_eightBitPIO) {
+				m_transferBuffer[m_transferPosition++] = value & 0xFF;
+				m_transferBuffer[m_transferPosition++] = value >> 8;
+
+				updateDRQLocked(m_transferState, false);
+			}
+			else {
+				m_transferBuffer[m_transferPosition++] = value & 0xFF;
+
+				updateDRQLocked(m_transferState, false);
+			}
+
+			break;
+		}
+
 		case ATACS0_ERROR_FEATURE:
 			m_feature = value;
 			break;
@@ -320,6 +342,19 @@ void ATADevice::pioRead(size_t size) {
 	updateDRQLocked(TransferState::PIORead, true);
 }
 
+void ATADevice::pioWrite(size_t size) {
+	std::unique_lock<std::mutex> locker(m_driveThreadMutex);
+
+	if (size > m_transferBuffer.size()) {
+		throw std::logic_error("PIO read transfer is too long");
+	}
+
+	m_transferSize = size;
+	m_transferPosition = 0;
+
+	updateDRQLocked(TransferState::PIOWrite, true);
+}
+
 void ATADevice::updateDRQLocked(TransferState state, bool first) {
 	//printf("UpdateDRQ: current state %d, new state %d, first transfer %d, position %u, length %u\n",
 	//	m_transferState, state, first, m_transferPosition, m_transferSize);
@@ -342,7 +377,13 @@ void ATADevice::updateDRQLocked(TransferState state, bool first) {
 	}
 	else {
 		m_status &= ~0x08;
+
+		bool writeFinished = m_transferState == TransferState::PIOWrite;
 		m_transferState = TransferState::Idle;
 		printf("PIO transfer complete\n");
+
+		if (writeFinished) {
+			pioWriteFinished();
+		}
 	}
 }

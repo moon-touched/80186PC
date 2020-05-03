@@ -45,6 +45,7 @@ private:
 	mutable std::shared_mutex m_configurationMutex;
 	uint8_t m_mode;
 	uint8_t m_crtcAddress;
+	uint8_t m_graphicsEnable;
 	std::array<uint8_t, 18> m_crtcRegisters;
 	unsigned char* m_framebuffer;
 };

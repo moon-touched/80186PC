@@ -15,6 +15,7 @@ public:
 protected:
 	void resetDevice() override;
 	void executeCommand(const ATACommand& command, ATACommandResult& result) override;
+	void pioWriteFinished() override;
 
 private:
 #pragma pack(push, 1)
@@ -66,6 +67,7 @@ private:
 	uint64_t m_currentAddress;
 	uint8_t m_currentCommand;
 	uint32_t m_sectorsRemaining;
+	unsigned int m_sectorsInThisChunk;
 };
 
 #endif

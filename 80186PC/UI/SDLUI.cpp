@@ -1,6 +1,7 @@
 #include <UI/SDLUI.h>
 #include <UI/VideoAdapter.h>
 #include <UI/Keyboard.h>
+#include <UI/Mouse.h>
 
 #include <SDL.h>
 
@@ -33,7 +34,7 @@ void SDLUI::SDLPaletteDeleter::operator()(SDL_Palette* palette) const {
 	SDL_FreePalette(palette);
 }
 
-SDLUI::SDLUI() : m_videoAdapter(nullptr), m_keyboard(nullptr) {
+SDLUI::SDLUI() : m_videoAdapter(nullptr), m_keyboard(nullptr), m_mouse(nullptr), m_mouseCaptured(false) {
 	auto result = SDL_InitSubSystem(SDL_INIT_VIDEO | SDL_INIT_EVENTS);
 	if (result < 0) {
 		throw std::runtime_error("SDL_InitSubSystem failed: " + std::string(SDL_GetError()));
@@ -117,14 +118,14 @@ void SDLUI::run() {
 			switch(ev.type) {
 			case SDL_QUIT:
 				return;
-#if 0
+
 			case SDL_MOUSEMOTION:
 				if (m_mouseCaptured) {
-					m_mouseX.fetch_add(ev.motion.xrel);
-					m_mouseY.fetch_add(ev.motion.yrel);
+					auto mouse = m_mouse.load();
+					if (mouse)
+						mouse->addDeltas(ev.motion.xrel, ev.motion.yrel);
 				}
 				break;
-
 			case SDL_MOUSEBUTTONDOWN:
 				if (!m_mouseCaptured) {
 					if (SDL_SetRelativeMouseMode(SDL_TRUE) >= 0) {
@@ -145,16 +146,13 @@ void SDLUI::run() {
 					
 				break;
 
-#endif
 			case SDL_KEYDOWN:
-#if 0
 				if (ev.key.keysym.scancode == SDL_SCANCODE_LALT && m_mouseCaptured) {
 					m_mouseCaptured = false;
-					m_mouseButtons = 0;
 
 					SDL_SetRelativeMouseMode(SDL_FALSE);
 				}
-#endif
+
 				pushKeyboardEvent(ev.key);
 				break;
 
@@ -314,7 +312,23 @@ void SDLUI::run() {
 					}
 				}
 				else {
+					if (!m_graphicsSurface || m_graphicsSurface->w != config.widthPixels || m_graphicsSurface->h != config.heightPixels) {
+						// explicitly allocate framebuffer to ensure tightly packed rows
+						m_graphicsSurface.reset();
+						m_graphicsSurfaceData.resize(config.widthPixels / 8 * config.heightPixels);
+						m_graphicsSurface.reset(SDL_CreateRGBSurfaceWithFormatFrom(m_graphicsSurfaceData.data(), config.widthPixels, config.heightPixels, 1, config.widthPixels / 8, SDL_PIXELFORMAT_INDEX1MSB));
+						SDL_SetSurfacePalette(m_graphicsSurface.get(), m_screenPalettes[PaletteIndexDimOnBlank].get());
+					}
 
+					linearizeHerculesVideo(config, m_graphicsSurfaceData.data());
+
+					SDL_Rect rect;
+					rect.x = 0;
+					rect.y = 0;
+					rect.w = config.widthPixels;
+					rect.h = config.heightPixels;
+
+					SDL_BlitSurface(m_graphicsSurface.get(), &rect, surface, &rect);
 				}
 
 				SDL_UpdateWindowSurface(m_window.get());
@@ -341,109 +355,19 @@ bool SDLUI::getKeyboardEvent(uint8_t& ev) {
 	return ev;
 }
 #endif
+
+void SDLUI::linearizeHerculesVideo(const VideoAdapter::AdapterConfiguration& config, unsigned char* data) {
+	unsigned int pitch = config.widthPixels / 8;
+
+	for (unsigned int dstrow = 0; dstrow < config.heightPixels; dstrow++) {
+		auto srcData = config.graphicsModeFramebuffer + ((dstrow & 3) << 13) + ((dstrow >> 2) * 90);
+
+		memcpy(data + dstrow * pitch, srcData, pitch);
+	}
+}
+
 void SDLUI::pushKeyboardEvent(const SDL_KeyboardEvent& ev) {
 	static const std::unordered_map<SDL_Scancode, uint8_t> keyMap{
-#if 0
-		{ SDL_SCANCODE_F1,  0x20 },
-		{ SDL_SCANCODE_F2,  0x26 },
-		{ SDL_SCANCODE_F3,  0x05 },
-		{ SDL_SCANCODE_F4,  0x3E },
-		{ SDL_SCANCODE_F5,  0x50 },
-		{ SDL_SCANCODE_F6,  0x42 },
-		{ SDL_SCANCODE_F7,  0x03 },
-		{ SDL_SCANCODE_F8,  0x2C },
-		{ SDL_SCANCODE_F9,  0x06 },
-		{ SDL_SCANCODE_F10, 0x0D },
-		{ SDL_SCANCODE_F11, 0x67 },
-		{ SDL_SCANCODE_F12, 0x7D },
-		{ SDL_SCANCODE_F13, 0x72 },
-		{ SDL_SCANCODE_PAGEUP, 0x72 }, // alias for F13 
-		{ SDL_SCANCODE_F14, 0x7E },
-		{ SDL_SCANCODE_PAGEDOWN, 0x7E }, // alias for F14
-		{ SDL_SCANCODE_ESCAPE, 0x62 },
-		{ SDL_SCANCODE_1, 0x68 },
-		{ SDL_SCANCODE_2, 0x6E },
-		{ SDL_SCANCODE_3, 0x22 },
-		{ SDL_SCANCODE_4, 0x15 },
-		{ SDL_SCANCODE_5, 0x63 },
-		{ SDL_SCANCODE_6, 0x74 },
-		{ SDL_SCANCODE_7, 0x02 },
-		{ SDL_SCANCODE_8, 0x08 },
-		{ SDL_SCANCODE_9, 0x24 },
-		{ SDL_SCANCODE_0, 0x2A },
-		{ SDL_SCANCODE_MINUS, 0x30 },
-		{ SDL_SCANCODE_EQUALS, 0x2B },
-		{ SDL_SCANCODE_BACKSPACE, 0x64 },
-		{ SDL_SCANCODE_DELETE, 0x18 },
-		{ SDL_SCANCODE_TAB, 0x4A },
-		{ SDL_SCANCODE_Q, 0x56 },
-		{ SDL_SCANCODE_W, 0x1C },
-		{ SDL_SCANCODE_E, 0x0F },
-		{ SDL_SCANCODE_R, 0x5D },
-		{ SDL_SCANCODE_T, 0x57 },
-		{ SDL_SCANCODE_Y, 0x7A },
-		{ SDL_SCANCODE_U, 0x1A },
-		{ SDL_SCANCODE_I, 0x0C },
-		{ SDL_SCANCODE_O, 0x1F },
-		{ SDL_SCANCODE_P, 0x25 },
-		{ SDL_SCANCODE_LEFTBRACKET, 0x10 },
-		{ SDL_SCANCODE_RIGHTBRACKET, 0x5E },
-		{ SDL_SCANCODE_RETURN, 0x6A },
-		{ SDL_SCANCODE_GRAVE, 0x55 },
-		{ SDL_SCANCODE_CAPSLOCK, 0x71 },
-		{ SDL_SCANCODE_LCTRL, 0x44 },
-		{ SDL_SCANCODE_A, 0x5C },
-		{ SDL_SCANCODE_S, 0x4C },
-		{ SDL_SCANCODE_D, 0x09 },
-		{ SDL_SCANCODE_F, 0x69 },
-		{ SDL_SCANCODE_G, 0x4B },
-		{ SDL_SCANCODE_H, 0x3F },
-		{ SDL_SCANCODE_J, 0x14 },
-		{ SDL_SCANCODE_K, 0x37 },
-		{ SDL_SCANCODE_L, 0x19 },
-		{ SDL_SCANCODE_SEMICOLON, 0x0A },
-		{ SDL_SCANCODE_APOSTROPHE, 0x16 },
-		{ SDL_SCANCODE_BACKSLASH, 0x3D },
-		{ SDL_SCANCODE_SCROLLLOCK, 0x27 },
-		{ SDL_SCANCODE_LSHIFT, 0x41 },
-		{ SDL_SCANCODE_Z, 0x01 },
-		{ SDL_SCANCODE_X, 0x6F },
-		{ SDL_SCANCODE_C, 0x51 },
-		{ SDL_SCANCODE_V, 0x45 },
-		{ SDL_SCANCODE_B, 0x33 },
-		{ SDL_SCANCODE_N, 0x21 },
-		{ SDL_SCANCODE_M, 0x28 },
-		{ SDL_SCANCODE_COMMA, 0x70 },
-		{ SDL_SCANCODE_PERIOD, 0x58 },
-		{ SDL_SCANCODE_SLASH, 0x52 },
-		{ SDL_SCANCODE_RSHIFT, 0x34 },
-		{ SDL_SCANCODE_SPACE, 0x5F },
-		{ SDL_SCANCODE_PAUSE, 0x0E }, // Break/Discon
-		{ SDL_SCANCODE_DELETE, 0x5B }, // Clear/Reset
-		{ SDL_SCANCODE_UP, 0x17 },
-		{ SDL_SCANCODE_DOWN, 0x76 },
-		{ SDL_SCANCODE_LEFT, 0x13 },
-		{ SDL_SCANCODE_RIGHT, 0x4F },
-
-		{ SDL_SCANCODE_NUMLOCKCLEAR, 0x49 }, // Numeric keypad ( =
-		{ SDL_SCANCODE_KP_DIVIDE, 0x61 },
-		{ SDL_SCANCODE_KP_MULTIPLY, 0x11 }, // Numeric keypad ) X
-		{ SDL_SCANCODE_KP_PLUS, 0x7F },
-		{ SDL_SCANCODE_KP_7, 0x32 },
-		{ SDL_SCANCODE_KP_8, 0x12 },
-		{ SDL_SCANCODE_KP_9, 0x2F },
-		{ SDL_SCANCODE_KP_MINUS, 0x73 },
-		{ SDL_SCANCODE_KP_4, 0x1B },
-		{ SDL_SCANCODE_KP_5, 0x75 },
-		{ SDL_SCANCODE_KP_6, 0x23 },
-		{ SDL_SCANCODE_KP_1, 0x6D },
-		{ SDL_SCANCODE_KP_2, 0x6B },
-		{ SDL_SCANCODE_KP_3, 0x78 },
-		{ SDL_SCANCODE_KP_0, 0x53 },
-		{ SDL_SCANCODE_KP_PERIOD, 0x2E },
-		{ SDL_SCANCODE_KP_ENTER, 0x00 },
-#endif
-
 		{ SDL_SCANCODE_ESCAPE,			0x01 },
 		{ SDL_SCANCODE_1,				0x02 },
 		{ SDL_SCANCODE_2,				0x03 },
@@ -550,7 +474,7 @@ void SDLUI::pushKeyboardEvent(const SDL_KeyboardEvent& ev) {
 
 	auto keyboard = m_keyboard.load();
 
-	if (ev.repeat || !keyboard)
+	if (!keyboard)
 		return;
 
 	auto it = keyMap.find(ev.keysym.scancode);
@@ -570,21 +494,19 @@ void SDLUI::pushKeyboardEvent(const SDL_KeyboardEvent& ev) {
 		keyboard->pushScancode(code | 0x80);
 	}
 }
-#if 0
+
 void SDLUI::updateMouseButton(const SDL_MouseButtonEvent& ev) {
 	static const std::unordered_map<uint8_t, uint8_t> buttonMap{
-		{ 1, (1 << 2) }, // left
-		{ 2, (1 << 1) }, // middle
-		{ 3, (1 << 0) } // right
+		{ 1, 2 }, // left
+		{ 2, 1 }, // middle
+		{ 3, 0 } // right
 	};
 
 	auto it = buttonMap.find(ev.button);
 	if (it == buttonMap.end())
 		return;
 
-	if (ev.state == SDL_PRESSED)
-		m_mouseButtons.fetch_or(it->second);
-	else
-		m_mouseButtons.fetch_and(~it->second);
+	auto mouse = m_mouse.load();
+	if (mouse)
+		mouse->updateButtonState(it->second, ev.state == SDL_PRESSED);
 }
-#endif

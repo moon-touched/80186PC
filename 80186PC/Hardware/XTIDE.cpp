@@ -41,7 +41,13 @@ void XTIDE::write8(uint64_t address, uint8_t mask, uint8_t data) {
 	auto reg = static_cast<uint8_t>((address & 0xE) >> 1);
 
 	if (reg == 0) {
-		__debugbreak(); // 16-bit stuff
+		if (address & 1) {
+			m_transferBuffer = (m_transferBuffer & 0x00FF) | (data << 8);
+		}
+		else {
+			m_transferBuffer = (m_transferBuffer & 0xFF00) | data;
+			return m_device->write(cs, reg, m_transferBuffer);
+		}
 	}
 
 	return m_device->write(cs, reg, data);

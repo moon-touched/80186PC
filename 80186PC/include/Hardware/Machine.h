@@ -23,13 +23,14 @@
 #include <Hardware/PPI.h>
 #include <Hardware/PPIConsumer.h>
 #include <Hardware/XTIDE.h>
+#include <Hardware/BusMouse.h>
 #include <ATA/ATADemux.h>
 #include <ATA/ATAHardDisk.h>
 #include <Hardware/XTKeyboard.h>
 
 class CPUEmulation;
 
-//#define RAM_FILE
+#define RAM_FILE
 class Machine final : private PPIConsumer {
 public:
 	Machine();
@@ -44,6 +45,10 @@ public:
 
 	inline Keyboard* keyboard() {
 		return &m_xtKeyboard;
+	}
+
+	inline Mouse* mouse() {
+		return &m_busMouse;
 	}
 
 private:
@@ -95,7 +100,8 @@ private:
 	std::optional<MappedAddressRange> m_ramAddressRange;
 	bool m_lowSwitches;
 	uint8_t m_switches;
-	mutable XTKeyboard m_xtKeyboard;
+	XTKeyboard m_xtKeyboard;
+	BusMouse m_busMouse;
 };
 
 #endif

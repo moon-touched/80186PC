@@ -5,7 +5,7 @@
 
 #include <chrono>
 
-HerculesVideo::HerculesVideo() : m_mode(0), m_crtcAddress(0), m_framebuffer(nullptr) {
+HerculesVideo::HerculesVideo() : m_mode(0), m_graphicsEnable(0), m_crtcAddress(0), m_framebuffer(nullptr) {
 	for (auto& reg : m_crtcRegisters) {
 		reg = 0;
 	}
@@ -51,6 +51,12 @@ uint8_t HerculesVideo::read8(uint64_t address, uint8_t mask) {
 
 			return status;
 		}
+
+		// LPT registers
+		case 4:
+		case 5:
+		case 6:
+			break;
 
 		default:
 			__debugbreak();
@@ -99,6 +105,19 @@ void HerculesVideo::write8(uint64_t address, uint8_t mask, uint8_t data) {
 			// status register
 			break;
 
+		// LPT registers
+		case 4:
+		case 5:
+		case 6:
+			break;
+
+		case 7:
+		{
+			std::unique_lock<std::shared_mutex> locker(m_configurationMutex);
+			m_graphicsEnable = data;
+		}
+			break;
+
 		default:
 			__debugbreak();
 			break;
@@ -143,9 +162,16 @@ void HerculesVideo::acquireAdapterConfiguration(AdapterConfiguration& config) {
 		(static_cast<uint16_t>(m_crtcRegisters[CRTCCursorAddressLSB]));
 
 	config.videoEnabled = (m_mode & (1 << 3)) != 0;
-	config.textMode = true;
-	config.widthPixels = m_crtcRegisters[CRTCHDisplay] * 9;
+	config.textMode = (m_mode & (1 << 1)) == 0 || (m_graphicsEnable & (1 << 0)) == 0;
+	if (config.textMode) {
+		config.widthPixels = m_crtcRegisters[CRTCHDisplay] * 9;
+	}
+	else {
+		config.widthPixels = m_crtcRegisters[CRTCHDisplay] * 16;
+	}
+
 	config.heightPixels = m_crtcRegisters[CRTCVDisplay] * (m_crtcRegisters[CRTCMaxScanLine] + 1);
+
 	config.textModeColumns = 80;
 	config.textModeRows = 25;
 	config.textModeFramebuffer = m_framebuffer + startAddress * 2;
@@ -153,4 +179,8 @@ void HerculesVideo::acquireAdapterConfiguration(AdapterConfiguration& config) {
 	config.textModeCursorAddress = (cursorAddress - startAddress) * 2;
 	config.textModeFirstCursorLine = m_crtcRegisters[CRTCCursorStart];
 	config.textModeLastCursorLine = m_crtcRegisters[CRTCCursorEnd];
+	if (m_mode & (1 << 7))
+		config.graphicsModeFramebuffer = m_framebuffer + 0x08000 + startAddress * 2;
+	else
+		config.graphicsModeFramebuffer = m_framebuffer + startAddress * 2;
 }

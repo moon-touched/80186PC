@@ -11,6 +11,7 @@ int main(int argc, char* argv[]) {
 
 	ui.setVideoAdapter(machine.videoAdapter());
 	ui.setKeyboard(machine.keyboard());
+	ui.setMouse(machine.mouse());
 
 	ui.run();
 

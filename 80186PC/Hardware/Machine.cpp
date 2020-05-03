@@ -95,9 +95,10 @@ Machine::Machine() :
 
 	//m_ioDispatcher.registerAddressRange(0x170, 0x178, &m_secondaryIDE).release();
 	//m_ioDispatcher.registerAddressRange(0x1F0, 0x1F8, &m_primaryIDE).release();
+	m_ioDispatcher.registerAddressRange(0x23C, 0x240, &m_busMouse).release();
 	m_ioDispatcher.registerAddressRange(0x300, 0x320, &m_xtide).release();
 	//m_ioDispatcher.registerAddressRange(0x376, 0x377, &m_secondaryIDE.control).release();
-	m_ioDispatcher.registerAddressRange(0x3B0, 0x3BB, &m_hercules).release();
+	m_ioDispatcher.registerAddressRange(0x3B0, 0x3C0, &m_hercules).release();
 	//m_ioDispatcher.registerAddressRange(0x3F6, 0x3F7, &m_primaryIDE.control).release();
 	//m_ioDispatcher.registerAddressRange(0x3F8, 0x400, &m_serialPort).release();
 	m_ioDispatcher.registerAddressRange(0x4D0, 0x4D1, &m_primaryPIC.elcr).release();
@@ -105,26 +106,19 @@ Machine::Machine() :
 	/*
 	 * Interrupt routing:
 	 * 0 - PIT
-	 * 1 - PCI: OHCI 0:2.0
-	 * 2 - PIC to PIC
-	 * 3 - PCI: NV2A
-	 * 4 - PCI: NIC
-	 * 5 - PCI: APU
-	 * 6 - PCI: AC97
-	 * 7 - ?
-	 * 8 - RTC
-	 * 9 - PCI: OHCI 0:3.0
-	 * 10 - ?
-	 * 11 - PCI: SMBus
-	 * 12 - ?
-	 * 13 - ?
-	 * 14 - Primary IDE
-	 * 15 - Secondary IDE
+	 * 1 - Keyboard
+	 * 2 - 
+	 * 3 - 
+	 * 4 -
+	 * 5 -  Bus mouse
+	 * 6 - 
+	 * 7 - IDE
 	 */
 	m_cpu->setInterruptController(&m_primaryPIC);
 	m_primaryPIC.setOutputInterruptLine(m_cpu.get());
 	m_pit.setInterruptLine(m_primaryPIC.line(0));
 	m_xtKeyboard.setInterruptLine(m_primaryPIC.line(1));
+	m_busMouse.setInterruptLine(m_primaryPIC.line(5));
 	//m_secondaryPIC.setOutputInterruptLine(m_primaryPIC.line(2));
 	//m_primaryPIC.setSecondaryPIC(2, &m_secondaryPIC);
 	m_xtide.setInterruptLine(m_primaryPIC.line(7));
@@ -163,7 +157,7 @@ void Machine::writePortB(uint8_t value, uint8_t mask) {
 	// 4 - RAM parity check
 	// 5 - I/O channel check
 
-	m_xtKeyboard.setHold((value & (1 << 6)) != 0);
+	m_xtKeyboard.setHold((value & (1 << 6)) == 0);
 	m_xtKeyboard.setReset((value & (1 << 7)) != 0);
 
 	printf("PPI: port B: %02X\n", value);

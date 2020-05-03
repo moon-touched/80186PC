@@ -24,6 +24,9 @@ public:
 		unsigned int textModeCursorAddress;
 		unsigned int textModeFirstCursorLine;
 		unsigned int textModeLastCursorLine;
+
+		// graphics mode only
+		const unsigned char* graphicsModeFramebuffer;
 	};
 
 	virtual void acquireAdapterConfiguration(AdapterConfiguration& config) = 0;

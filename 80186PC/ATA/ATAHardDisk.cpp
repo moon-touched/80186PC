@@ -251,15 +251,15 @@ void ATAHardDisk::pioNext() {
 		return;
 	}
 
-	unsigned int sectorsInThisChunk = 1;
+	m_sectorsInThisChunk = 1;
 	if ((m_currentCommand == ATACMD_READ_MULTIPLE || m_currentCommand == ATACMD_WRITE_MULTIPLY) && m_identify.multipleSectorConfiguration != 0) {
-		sectorsInThisChunk = m_identify.multipleSectorConfiguration;
+		m_sectorsInThisChunk = m_identify.multipleSectorConfiguration;
 	}
 
-	sectorsInThisChunk = std::min<unsigned int>(sectorsInThisChunk, m_sectorsRemaining);
+	m_sectorsInThisChunk = std::min<unsigned int>(m_sectorsInThisChunk, m_sectorsRemaining);
 
 	if (m_currentCommand == ATACMD_READ_MULTIPLE || m_currentCommand == ATACMD_READ_SECTORS || m_currentCommand == ATACMD_READ_SECTORS_NO_RETRY) {
-		auto bytesToRead = sectorsInThisChunk << 9;
+		auto bytesToRead = m_sectorsInThisChunk << 9;
 
 		OVERLAPPED io;
 		ZeroMemory(&io, sizeof(io));
@@ -288,16 +288,62 @@ void ATAHardDisk::pioNext() {
 		if (bytesRead != bytesToRead)
 			throw std::logic_error("short read");
 
-		m_currentAddress += sectorsInThisChunk;
-		m_sectorsRemaining -= sectorsInThisChunk;
+		m_currentAddress += m_sectorsInThisChunk;
+		m_sectorsRemaining -= m_sectorsInThisChunk;
 
 		pioRead(bytesToRead);
 
 		if(m_sectorsRemaining != 0)
 			__debugbreak();
 	}
+	else if (m_currentCommand == ATACMD_WRITE_MULTIPLY || m_currentCommand == ATACMD_WRITE_SECTORS || m_currentCommand == ATACMD_WRITE_SECTORS_NO_RETRY) {
+		auto bytesToWrite = m_sectorsInThisChunk << 9;
+
+		pioWrite(bytesToWrite);
+	}
 	else {
 		__debugbreak();
 	}
+}
 
+void ATAHardDisk::pioWriteFinished() {
+	if (m_currentCommand == ATACMD_WRITE_MULTIPLY || m_currentCommand == ATACMD_WRITE_SECTORS || m_currentCommand == ATACMD_WRITE_SECTORS_NO_RETRY) {
+		auto bytesToWrite = m_sectorsInThisChunk << 9;
+
+		OVERLAPPED io;
+		ZeroMemory(&io, sizeof(io));
+		uint64_t offset = m_currentAddress << 9;
+
+		io.OffsetHigh = static_cast<uint32_t>(offset >> 32);
+		io.Offset = static_cast<uint32_t>(offset);
+
+		DWORD bytesWritten;
+
+		DWORD result = ERROR_SUCCESS;
+		if (!WriteFile(m_disk.get(), transferBuffer(), bytesToWrite, &bytesWritten, &io)) {
+			result = GetLastError();
+		}
+
+		if (result == ERROR_IO_PENDING) {
+			if (GetOverlappedResult(m_disk.get(), &io, &bytesWritten, TRUE))
+				result = ERROR_SUCCESS;
+			else
+				result = GetLastError();
+		}
+
+		if (result != ERROR_SUCCESS)
+			_com_raise_error(HRESULT_FROM_WIN32(result));
+
+		if (bytesWritten != bytesToWrite)
+			throw std::logic_error("short read");
+
+		m_currentAddress += m_sectorsInThisChunk;
+		m_sectorsRemaining -= m_sectorsInThisChunk;
+
+		if (m_sectorsRemaining != 0)
+			__debugbreak();
+	}
+	else {
+		__debugbreak();
+	}
 }

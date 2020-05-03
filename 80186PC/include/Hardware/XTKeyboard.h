@@ -4,6 +4,7 @@
 #include <atomic>
 #include <mutex>
 #include <deque>
+#include <thread>
 
 #include <UI/Keyboard.h>
 
@@ -29,9 +30,7 @@ public:
 		return m_reset;
 	}
 
-	inline void setReset(bool reset) {
-		m_reset = reset;
-	}
+	void setReset(bool reset);
 
 	inline bool hold() const {
 		return m_hold;
@@ -41,16 +40,26 @@ public:
 		m_hold = hold;
 	}
 
-	uint8_t readDataByte();
+	inline uint8_t readDataByte() const {
+		return m_scancode.load();
+	}
 
 	void pushScancode(uint8_t scancode) override;
 
 private:
+	void xtKeyboardThread();
+
 	std::atomic<InterruptLine*> m_interruptLine;
 	bool m_reset;
-	bool m_hold;
-	std::mutex m_queueLock;
+	std::atomic<bool> m_waitingForAck;
+	std::atomic<bool> m_hold;
 	std::deque<uint8_t> m_queue;
+	std::atomic<uint8_t> m_scancode;
+
+	std::mutex m_threadMutex;
+	std::condition_variable m_threadCondvar;
+	bool m_runThread;
+	std::thread m_thread;
 };
 
 #endif
