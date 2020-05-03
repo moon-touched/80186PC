@@ -1,5 +1,4 @@
 #include <Hardware/CPUEmulationFactory.h>
-#include <HyperV/HypervisorCPUEmulation.h>
 #include <X86Emu/X86EmuCPUEmulation.h>
 
 CPUEmulationFactory::CPUEmulationFactory() = default;

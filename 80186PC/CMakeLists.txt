@@ -37,19 +37,8 @@ set(hardware_sources
 	Hardware/RTC.cpp
 	Hardware/XTIDE.cpp
 	Hardware/XTKeyboard.cpp
-
 )
 
-set(hyperv_sources
-	include/HyperV/HypervisorCPUEmulation.h
-	include/HyperV/HypervisorEmulator.h
-	include/HyperV/HypervisorPartition.h
-	include/HyperV/IHypervisorEmulatorCallbacks.h
-	HyperV/HypervisorCPUEmulation.cpp
-	HyperV/HypervisorEmulator.cpp
-	HyperV/HypervisorPartition.cpp
-	HyperV/IHypervisorEmulatorCallbacks.cpp
-)
 
 set(infrastructure_sources
 	include/Infrastructure/AddressRange.h
@@ -109,7 +98,6 @@ set(x86emu_sources
 add_executable(80186PC
 	${ata_sources}
 	${hardware_sources}
-	${hyperv_sources}
 	${infrastructure_sources}
 	${libx86emu_sources}
 	${ui_sources}
@@ -121,7 +109,6 @@ add_executable(80186PC
 
 source_group(ATA FILES ${ata_sources})
 source_group(Hardware FILES ${hardware_sources})
-source_group(HyperV FILES ${hyperv_sources})
 source_group(Infrastructure FILES ${infrastructure_sources})
 source_group(libx86emu FILES ${libx86emu_sources})
 source_group(UI FILES ${ui_sources})
@@ -130,7 +117,7 @@ source_group(X86Emu FILES ${x86emu_sources})
 
 target_compile_definitions(80186PC PRIVATE -DUNICODE -D_UNICODE -DWIN32_LEAN_AND_MEAN -D_VC_EXTRALEAN -DNOMINMAX -D_CRT_SECURE_NO_WARNINGS)
 target_include_directories(80186PC PRIVATE include libx86emu/include)
-target_link_libraries(80186PC PRIVATE WinHvPlatform WinHvEmulation virtdisk)
+target_link_libraries(80186PC PRIVATE virtdisk)
 set_target_properties(80186PC PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED TRUE)
 
 target_include_directories(80186PC PRIVATE ${SDL2_INCLUDE_DIRS})
