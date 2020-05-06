@@ -5,7 +5,7 @@
 #include <stdexcept>
 #include <string>
 
-X86EmuCPUEmulation::X86EmuCPUEmulation() : m_interruptPending(false) {
+X86EmuCPUEmulation::X86EmuCPUEmulation() : m_interruptPending(false), m_run(true) {
 	m_emulator.reset(x86emu_new(0, 0));
 	//x86emu_set_log(m_emulator.get(), 16384, flushLog);
 	m_nativeMemioHandler = x86emu_set_memio_handler(m_emulator.get(), memioHandler);
@@ -17,11 +17,17 @@ X86EmuCPUEmulation::X86EmuCPUEmulation() : m_interruptPending(false) {
 }
 
 X86EmuCPUEmulation::~X86EmuCPUEmulation() {
-	m_cpu0Thread.join();
+	stop();
 }
 
 void X86EmuCPUEmulation::start() {
 	m_cpu0Thread = std::thread(&X86EmuCPUEmulation::cpu0Thread, this);
+}
+
+void X86EmuCPUEmulation::stop() {
+	m_run = false;
+	if (m_cpu0Thread.joinable())
+		m_cpu0Thread.join();
 }
 
 bool X86EmuCPUEmulation::shouldDeliverInterrupt() const {
@@ -30,8 +36,8 @@ bool X86EmuCPUEmulation::shouldDeliverInterrupt() const {
 }
 
 void X86EmuCPUEmulation::cpu0Thread() {
-	while (true) {
-		std::unique_lock<std::mutex> locker(m_emulatorMutex);
+	while (m_run.load()) {
+		std::unique_lock<std::recursive_mutex> locker(m_emulatorMutex);
 
 		if (shouldDeliverInterrupt()) {
 			auto vector = interruptController()->processInterruptAcknowledge();
@@ -59,7 +65,7 @@ void X86EmuCPUEmulation::unmapMemory(uint64_t base, uint64_t limit) {
 }
 
 void X86EmuCPUEmulation::mapMemoryInternal(uint64_t base, uint64_t limit, void* hostMemory, unsigned int permissions) {
-	std::unique_lock<std::mutex> locker(m_emulatorMutex);
+	std::unique_lock<std::recursive_mutex> locker(m_emulatorMutex);
 
 	auto ptr = reinterpret_cast<uint8_t*>(hostMemory);
 
@@ -81,7 +87,7 @@ void X86EmuCPUEmulation::mapMemoryInternal(uint64_t base, uint64_t limit, void* 
 }
 
 void X86EmuCPUEmulation::unmapMemoryInternal(uint64_t base, uint64_t limit) {
-	std::unique_lock<std::mutex> locker(m_emulatorMutex);
+	std::unique_lock<std::recursive_mutex> locker(m_emulatorMutex);
 
 	for (uint64_t addr = base; addr < limit; addr += X86EMU_PAGE_SIZE) {
 		x86emu_set_page(m_emulator.get(), addr, nullptr);

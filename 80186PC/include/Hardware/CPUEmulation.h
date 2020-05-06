@@ -42,6 +42,7 @@ public:
 	}
 
 	virtual void start() = 0;
+	virtual void stop() = 0;
 
 	virtual void mapMemory(uint64_t base, uint64_t limit, void* hostMemory, unsigned int permissions) = 0;
 	virtual void unmapMemory(uint64_t base, uint64_t limit) = 0;

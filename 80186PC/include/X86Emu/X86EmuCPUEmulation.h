@@ -15,6 +15,7 @@ public:
 	~X86EmuCPUEmulation() override;
 
 	void start() override;
+	void stop() override;
 
 	void mapMemory(uint64_t base, uint64_t limit, void* hostMemory, unsigned int permissions) override;
 	void unmapMemory(uint64_t base, uint64_t limit) override;
@@ -41,10 +42,11 @@ private:
 		}
 	};
 	
-	std::mutex m_emulatorMutex;
+	std::recursive_mutex m_emulatorMutex;
 	std::unique_ptr<x86emu_t, X86EmuDeleter> m_emulator;
 	x86emu_memio_handler_t m_nativeMemioHandler;
 	std::atomic<bool> m_interruptPending;
+	std::atomic<bool> m_run;
 	std::thread m_cpu0Thread;
 };
 

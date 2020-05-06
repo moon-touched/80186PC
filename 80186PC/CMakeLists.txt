@@ -11,6 +11,7 @@ set(ata_sources
 )
 
 set(hardware_sources
+	include/Hardware/AboveBoard.h
 	include/Hardware/BusMouse.h
 	include/Hardware/CPUEmulation.h
 	include/Hardware/CPUEmulationFactory.h
@@ -24,6 +25,7 @@ set(hardware_sources
 	include/Hardware/RTC.h
 	include/Hardware/XTIDE.h
 	include/Hardware/XTKeyboard.h
+	Hardware/AboveBoard.cpp
 	Hardware/BusMouse.cpp
 	Hardware/CPUEmulation.cpp
 	Hardware/CPUEmulationFactory.cpp

@@ -25,7 +25,7 @@ public:
 	void establishMappings(CPUEmulation* emulation, uint64_t base, uint64_t limit) override;
 	void removeMappings(CPUEmulation* emulation, uint64_t base, uint64_t limit) override;
 
-	AddressRangeRegistration registerAddressRange(uint64_t base, uint64_t limit, IAddressRangeHandler *handler, uint64_t offset = 0);
+	AddressRangeRegistration registerAddressRange(uint64_t base, uint64_t limit, IAddressRangeHandler *handler, uint64_t offset = 0, bool allowFailure = false);
 	void unregisterAddressRange(std::set<AddressRange>::const_iterator it);
 
 	IAddressRangeHandler* findHandlerForRange(uint32_t base);

@@ -27,6 +27,7 @@
 #include <ATA/ATADemux.h>
 #include <ATA/ATAHardDisk.h>
 #include <Hardware/XTKeyboard.h>
+#include <Hardware/AboveBoard.h>
 
 class CPUEmulation;
 
@@ -52,11 +53,12 @@ public:
 	}
 
 private:
-	static constexpr uint64_t RAMAreaBase = 0ULL;
-
-	static constexpr uint64_t RAMAreaEnd = 0xC0000ULL;
+	static constexpr uint64_t RAMAreaBase  = 0ULL;
+	static constexpr uint64_t RAMAreaEnd   = 0x80000ULL;
+	static constexpr uint64_t VRAMAreaBase = 0xB0000ULL;
+	static constexpr uint64_t VRAMAreaEnd  = 0xC0000ULL;
 	static constexpr uint64_t BIOSAreaBase = 0xF4000ULL;
-	static constexpr uint64_t BIOSAreaEnd = 0x100000ULL;
+	static constexpr uint64_t BIOSAreaEnd  = 0x100000ULL;
 
 	uint8_t readPortA(uint8_t mask) const override;
 	void writePortA(uint8_t value, uint8_t mask) override;
@@ -98,10 +100,13 @@ private:
 	WindowsMemoryRegion m_ram;
 #endif
 	std::optional<MappedAddressRange> m_ramAddressRange;
+	WindowsMemoryRegion m_vram;
+	std::optional<MappedAddressRange> m_vramAddressRange;
 	bool m_lowSwitches;
 	uint8_t m_switches;
 	XTKeyboard m_xtKeyboard;
 	BusMouse m_busMouse;
+	AboveBoard m_aboveBoard;
 };
 
 #endif

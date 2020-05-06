@@ -17,7 +17,7 @@ AddressSpaceDispatcher::AddressSpaceDispatcher(std::string&& name) : m_name(std:
 
 AddressSpaceDispatcher::~AddressSpaceDispatcher() = default;
 
-AddressRangeRegistration AddressSpaceDispatcher::registerAddressRange(uint64_t base, uint64_t limit, IAddressRangeHandler* handler, uint64_t offset) {
+AddressRangeRegistration AddressSpaceDispatcher::registerAddressRange(uint64_t base, uint64_t limit, IAddressRangeHandler* handler, uint64_t offset, bool allowFailure) {
 	printf("AddressSpaceDispatcher(%s): registering: %08llX - %08llX -> %p\n", m_name.c_str(), base, limit, handler);
 	AddressRange range;
 	range.beginAddress = base;
@@ -31,6 +31,9 @@ AddressRangeRegistration AddressSpaceDispatcher::registerAddressRange(uint64_t b
 	}
 
 	if (existing != m_ranges.end() && existing->beginAddress <= base && existing->endAddress >= limit) {
+		if (allowFailure)
+			return AddressRangeRegistration();
+
 		if(IsDebuggerPresent())
 			__debugbreak();
 		throw std::runtime_error("address space conflict");
@@ -111,7 +114,7 @@ void AddressSpaceDispatcher::write(uint64_t address, unsigned int accessSize, ui
 	uint64_t resolvedAddress = address;
 	auto handler = resolve(resolvedAddress);
 	if (!handler) {
-		fprintf(stderr, "%s: no handler is defined for write to address %08llX (data %08llX, length %02X)\n", m_name.c_str(), address, data, accessSize);
+		//fprintf(stderr, "%s: no handler is defined for write to address %08llX (data %08llX, length %02X)\n", m_name.c_str(), address, data, accessSize);
 		//if (IsDebuggerPresent() && (!m_cpuEmulation || address >= 0x08000000))
 		//	__debugbreak();
 	}
@@ -125,7 +128,7 @@ uint64_t AddressSpaceDispatcher::read(uint64_t address, unsigned int accessSize)
 	auto handler = resolve(resolvedAddress);
 
 	if (!handler) {
-		fprintf(stderr, "%s: no handler is defined for read from address %08llX (length %02X)\n", m_name.c_str(), address, accessSize);
+		//fprintf(stderr, "%s: no handler is defined for read from address %08llX (length %02X)\n", m_name.c_str(), address, accessSize);
 		//if (IsDebuggerPresent() && (!m_cpuEmulation || address >= 0x08000000))
 		//	__debugbreak();
 

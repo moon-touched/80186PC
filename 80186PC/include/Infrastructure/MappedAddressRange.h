@@ -15,6 +15,10 @@ public:
 	size_t hostMemorySize() const override;
 	unsigned int hostMemoryPermissions() const override;
 
+	inline void changeBase(void* base) {
+		m_base = base;
+	}
+
 private:
 	void* m_base;
 	size_t m_size;

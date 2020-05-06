@@ -6,18 +6,19 @@
 #include <Hardware/CPUEmulation.h>
 
 Machine::Machine() :
-	m_cpu(CPUEmulationFactory().createCPUEmulation()),
 	m_mmioDispatcher("MMIO"),
 	m_ioDispatcher("IO"),
 #ifndef RAM_FILE
 	m_ram(RAMAreaEnd - RAMAreaBase, PAGE_READWRITE),
 #endif 
+	m_vram(VRAMAreaEnd - VRAMAreaBase, PAGE_READWRITE),
 	m_ppi(this),
 	m_hdd("C:\\projects\\80186PC\\hdd.vhd"),
 	m_ataDemux(&m_hdd, nullptr),
 	m_xtide(&m_ataDemux),
 	m_lowSwitches(false),
-	m_switches(0x3C)
+	m_switches(0x3C),
+	m_cpu(CPUEmulationFactory().createCPUEmulation())
 {
 
 	m_cpu->setMMIODispatcher(&m_mmioDispatcher);
@@ -71,9 +72,15 @@ Machine::Machine() :
 	#else
 		m_ramAddressRange.emplace(m_ram.base(), RAMAreaEnd - RAMAreaBase, MappedAddressRange::AccessRead | MappedAddressRange::AccessWrite | MappedAddressRange::AccessExecute);
 	#endif
+		
+	m_mmioDispatcher.registerAddressRange(
+		RAMAreaBase, RAMAreaEnd, &*m_ramAddressRange
+	).release();
+
+	m_vramAddressRange.emplace(m_vram.base(), VRAMAreaEnd - VRAMAreaBase, MappedAddressRange::AccessRead | MappedAddressRange::AccessWrite | MappedAddressRange::AccessExecute);
 
 	m_mmioDispatcher.registerAddressRange(
-		RAMAreaBase, RAMAreaEnd - RAMAreaBase, &*m_ramAddressRange
+		VRAMAreaBase, VRAMAreaEnd, &*m_vramAddressRange
 	).release();
 
 	m_biosMainAddressRange.emplace(
@@ -81,12 +88,12 @@ Machine::Machine() :
 	);
 	m_mmioDispatcher.registerAddressRange(BIOSAreaBase, BIOSAreaEnd, &*m_biosMainAddressRange).release();
 
-	m_hercules.setFramebuffer(static_cast<unsigned char*>(m_ramAddressRange->hostMemoryBase()) + 0xB0000);
+	m_hercules.setFramebuffer(static_cast<unsigned char*>(m_vramAddressRange->hostMemoryBase()));
 
 	/*
 	 * Legacy (non-PCI) PC hardware
 	 */
-	m_ioDispatcher.registerAddressRange(0x20, 0x40, &m_primaryPIC).release(); // Primary programmable interrupt controller
+	m_ioDispatcher.registerAddressRange(0x20, 0x22, &m_primaryPIC).release(); // Primary programmable interrupt controller
 	m_ioDispatcher.registerAddressRange(0x40, 0x60, &m_pit).release(); // Programmable interval timer
 	m_ioDispatcher.registerAddressRange(0x60, 0x70, &m_ppi).release(); 
 	//m_ioDispatcher.registerAddressRange(0x70, 0x72, &m_rtc).release(); // Real-time 'CMOS' clock
@@ -95,6 +102,7 @@ Machine::Machine() :
 
 	//m_ioDispatcher.registerAddressRange(0x170, 0x178, &m_secondaryIDE).release();
 	//m_ioDispatcher.registerAddressRange(0x1F0, 0x1F8, &m_primaryIDE).release();
+	m_aboveBoard.install(&m_ioDispatcher, 0x258, &m_mmioDispatcher);
 	m_ioDispatcher.registerAddressRange(0x23C, 0x240, &m_busMouse).release();
 	m_ioDispatcher.registerAddressRange(0x300, 0x320, &m_xtide).release();
 	//m_ioDispatcher.registerAddressRange(0x376, 0x377, &m_secondaryIDE.control).release();
@@ -103,6 +111,7 @@ Machine::Machine() :
 	//m_ioDispatcher.registerAddressRange(0x3F8, 0x400, &m_serialPort).release();
 	m_ioDispatcher.registerAddressRange(0x4D0, 0x4D1, &m_primaryPIC.elcr).release();
 	
+
 	/*
 	 * Interrupt routing:
 	 * 0 - PIT
@@ -129,7 +138,9 @@ Machine::Machine() :
 	m_cpu->start();
 }
 
-Machine::~Machine() = default;
+Machine::~Machine() {
+	m_cpu->stop();
+}
 
 uint8_t Machine::readPortA(uint8_t mask) const {
 	(void)mask;
