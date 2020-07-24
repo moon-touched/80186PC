@@ -22,7 +22,6 @@ set(hardware_sources
     include/Hardware/PIT.h
 	include/Hardware/PPI.h
 	include/Hardware/PPIConsumer.h
-	include/Hardware/RTC.h
 	include/Hardware/XTIDE.h
 	include/Hardware/XTKeyboard.h
 	Hardware/AboveBoard.cpp
@@ -36,7 +35,6 @@ set(hardware_sources
     Hardware/PIT.cpp
 	Hardware/PPI.cpp
 	Hardware/PPIConsumer.cpp
-	Hardware/RTC.cpp
 	Hardware/XTIDE.cpp
 	Hardware/XTKeyboard.cpp
 )
@@ -89,7 +87,9 @@ set(ui_sources
 set(utils_sources
 	include/Utils/AccessSizeUtils.h
 	include/Utils/WindowsObjectTypes.h
+	include/Utils/WindowsResources.h
 	Utils/WindowsObjectTypes.cpp
+	Utils/WindowsResources.cpp
 )
 
 set(x86emu_sources
@@ -102,6 +102,7 @@ add_executable(80186PC
 	${hardware_sources}
 	${infrastructure_sources}
 	${libx86emu_sources}
+	Resources/80186PC.rc
 	${ui_sources}
 	${utils_sources}
 	${x86emu_sources}

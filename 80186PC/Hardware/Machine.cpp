@@ -5,15 +5,15 @@
 #include <Hardware/CPUEmulationFactory.h>
 #include <Hardware/CPUEmulation.h>
 
-Machine::Machine() :
+#include <Utils/WindowsResources.h>
+
+Machine::Machine(const std::filesystem::path &hardDiskImage) :
 	m_mmioDispatcher("MMIO"),
 	m_ioDispatcher("IO"),
-#ifndef RAM_FILE
 	m_ram(RAMAreaEnd - RAMAreaBase, PAGE_READWRITE),
-#endif 
 	m_vram(VRAMAreaEnd - VRAMAreaBase, PAGE_READWRITE),
 	m_ppi(this),
-	m_hdd("C:\\projects\\80186PC\\hdd.vhd"),
+	m_hdd(hardDiskImage),
 	m_ataDemux(&m_hdd, nullptr),
 	m_xtide(&m_ataDemux),
 	m_lowSwitches(false),
@@ -25,53 +25,14 @@ Machine::Machine() :
 	m_cpu->setIODispatcher(&m_ioDispatcher);
 	m_mmioDispatcher.establishMappings(m_cpu.get(), 0x00000000ULL, 0x100000ULL);
 
-	auto rawHandle = CreateFile(
-		L"C:\\projects\\80186PC\\bios\\bios.bin",
-		GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, 0, nullptr);
-	if (rawHandle == INVALID_HANDLE_VALUE) {
-		auto error = HRESULT_FROM_WIN32(GetLastError());
-		_com_raise_error(error);
-	}
-	m_biosFile.reset(rawHandle);
+	const void* biosImage;
+	size_t biosImageSize;
+	getRCDATA(1, &biosImage, &biosImageSize);
 
-	auto mapping = CreateFileMapping(m_biosFile.get(), nullptr, PAGE_READONLY, 0, BIOSAreaEnd - BIOSAreaBase, nullptr);
-	if (mapping == nullptr) {
-		auto error = HRESULT_FROM_WIN32(GetLastError());
-		_com_raise_error(error);
-	}
-	m_biosMapping.reset(mapping);
+	if (biosImageSize != BIOSAreaEnd - BIOSAreaBase)
+		throw std::runtime_error("unexpected BIOS image size");
 
-	auto biosBase = MapViewOfFile(m_biosMapping.get(), FILE_MAP_READ, 0, 0, BIOSAreaEnd - BIOSAreaBase);
-	if (!biosBase) {
-		auto error = HRESULT_FROM_WIN32(GetLastError());
-		_com_raise_error(error);
-	}
-	m_biosBase.reset(biosBase);
-
-	#ifdef RAM_FILE	
-		rawHandle = CreateFile(L"C:\\projects\\80186PC\\ram.bin", GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
-		if (rawHandle == INVALID_HANDLE_VALUE) {
-			auto error = HRESULT_FROM_WIN32(GetLastError());
-			_com_raise_error(error);
-		}
-		m_ramFile.reset(rawHandle);
-		mapping = CreateFileMapping(m_ramFile.get(), nullptr, PAGE_READWRITE, 0, RAMAreaEnd - RAMAreaBase, nullptr);
-		if (mapping == nullptr) {
-			auto error = HRESULT_FROM_WIN32(GetLastError());
-			_com_raise_error(error);
-		}
-		m_ramMapping.reset(mapping);
-		auto ramBase = MapViewOfFile(m_ramMapping.get(), FILE_MAP_READ | FILE_MAP_WRITE, 0, 0, RAMAreaEnd - RAMAreaBase);
-		if (!ramBase) {
-			auto error = HRESULT_FROM_WIN32(GetLastError());
-			_com_raise_error(error);
-		}
-		m_ramBase.reset(ramBase);
-		m_ramAddressRange.emplace(m_ramBase.get(), RAMAreaEnd - RAMAreaBase, MappedAddressRange::AccessRead | MappedAddressRange::AccessWrite | MappedAddressRange::AccessExecute);
-
-	#else
-		m_ramAddressRange.emplace(m_ram.base(), RAMAreaEnd - RAMAreaBase, MappedAddressRange::AccessRead | MappedAddressRange::AccessWrite | MappedAddressRange::AccessExecute);
-	#endif
+	m_ramAddressRange.emplace(m_ram.base(), RAMAreaEnd - RAMAreaBase, MappedAddressRange::AccessRead | MappedAddressRange::AccessWrite | MappedAddressRange::AccessExecute);
 		
 	m_mmioDispatcher.registerAddressRange(
 		RAMAreaBase, RAMAreaEnd, &*m_ramAddressRange
@@ -84,31 +45,21 @@ Machine::Machine() :
 	).release();
 
 	m_biosMainAddressRange.emplace(
-		m_biosBase.get(), BIOSAreaEnd - BIOSAreaBase, MappedAddressRange::AccessRead | MappedAddressRange::AccessWrite | MappedAddressRange::AccessExecute
+		const_cast<void *>(biosImage), BIOSAreaEnd - BIOSAreaBase, MappedAddressRange::AccessRead | MappedAddressRange::AccessExecute
 	);
 	m_mmioDispatcher.registerAddressRange(BIOSAreaBase, BIOSAreaEnd, &*m_biosMainAddressRange).release();
 
 	m_hercules.setFramebuffer(static_cast<unsigned char*>(m_vramAddressRange->hostMemoryBase()));
 
-	/*
-	 * Legacy (non-PCI) PC hardware
-	 */
 	m_ioDispatcher.registerAddressRange(0x20, 0x22, &m_primaryPIC).release(); // Primary programmable interrupt controller
 	m_ioDispatcher.registerAddressRange(0x40, 0x60, &m_pit).release(); // Programmable interval timer
 	m_ioDispatcher.registerAddressRange(0x60, 0x70, &m_ppi).release(); 
-	//m_ioDispatcher.registerAddressRange(0x70, 0x72, &m_rtc).release(); // Real-time 'CMOS' clock
-	// 80-9F - DMA page registers
 	m_ioDispatcher.registerAddressRange(0xA0, 0xB0, &m_nmiControl).release(); // NMI mask register
 
-	//m_ioDispatcher.registerAddressRange(0x170, 0x178, &m_secondaryIDE).release();
-	//m_ioDispatcher.registerAddressRange(0x1F0, 0x1F8, &m_primaryIDE).release();
 	m_aboveBoard.install(&m_ioDispatcher, 0x258, &m_mmioDispatcher);
 	m_ioDispatcher.registerAddressRange(0x23C, 0x240, &m_busMouse).release();
 	m_ioDispatcher.registerAddressRange(0x300, 0x320, &m_xtide).release();
-	//m_ioDispatcher.registerAddressRange(0x376, 0x377, &m_secondaryIDE.control).release();
 	m_ioDispatcher.registerAddressRange(0x3B0, 0x3C0, &m_hercules).release();
-	//m_ioDispatcher.registerAddressRange(0x3F6, 0x3F7, &m_primaryIDE.control).release();
-	//m_ioDispatcher.registerAddressRange(0x3F8, 0x400, &m_serialPort).release();
 	m_ioDispatcher.registerAddressRange(0x4D0, 0x4D1, &m_primaryPIC.elcr).release();
 	
 
@@ -128,12 +79,7 @@ Machine::Machine() :
 	m_pit.setInterruptLine(m_primaryPIC.line(0));
 	m_xtKeyboard.setInterruptLine(m_primaryPIC.line(1));
 	m_busMouse.setInterruptLine(m_primaryPIC.line(5));
-	//m_secondaryPIC.setOutputInterruptLine(m_primaryPIC.line(2));
-	//m_primaryPIC.setSecondaryPIC(2, &m_secondaryPIC);
 	m_xtide.setInterruptLine(m_primaryPIC.line(7));
-	//m_rtc.setInterruptLine(m_secondaryPIC.line(0));
-	//m_primaryIDE.setInterruptLine(m_secondaryPIC.line(6));
-	//m_secondaryIDE.setInterruptLine(m_secondaryPIC.line(7));
 	
 	m_cpu->start();
 }

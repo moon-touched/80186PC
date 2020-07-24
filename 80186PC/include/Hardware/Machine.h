@@ -6,18 +6,11 @@
 
 #include <Utils/WindowsObjectTypes.h>
 #include <Infrastructure/AddressSpaceDispatcher.h>
-//#include <PCI/PCIBus.h>
-//#include <Hardware/PCIConfigurationSpaceAccess.h>
 #include <Infrastructure/MappedAddressRange.h>
 #include <Infrastructure/AddressRangeRegistration.h>
 #include <Infrastructure/DummyAddressRangeHandler.h>
 #include <Hardware/PIC.h>
-#include <Hardware/RTC.h>
 #include <Hardware/PIT.h>
-//#include <SMBus/SMBus.h>
-//#include <IDE/IDEControllerChannel.h>
-//#include <Hardware/SerialPort.h>
-//#include <Hardware/SuperIO.h>
 #include <Hardware/HerculesVideo.h>
 #include <Hardware/NMIControl.h>
 #include <Hardware/PPI.h>
@@ -31,10 +24,9 @@
 
 class CPUEmulation;
 
-#define RAM_FILE
 class Machine final : private PPIConsumer {
 public:
-	Machine();
+	explicit Machine(const std::filesystem::path &hardDiskImage);
 	~Machine();
 
 	Machine(const Machine& other) = delete;
@@ -73,32 +65,15 @@ private:
 	AddressSpaceDispatcher m_mmioDispatcher;
 	AddressSpaceDispatcher m_ioDispatcher;
 	PIC m_primaryPIC;
-	//PIC m_secondaryPIC;
-	RTC m_rtc;
 	PIT m_pit;
-	//IDEControllerChannel m_primaryIDE;
-	//IDEControllerChannel m_secondaryIDE;
-	//PCIBus m_pci;
-	//PCIConfigurationSpaceAccess m_pciConfigAccess;
-	//SMBus m_smbus0;
-	//SMBus m_smbus1;
 	HerculesVideo m_hercules;
 	NMIControl m_nmiControl;
 	PPI m_ppi;
 	ATAHardDisk m_hdd;
 	ATADemux m_ataDemux;
 	XTIDE m_xtide;
-	WindowsHandle m_biosFile;
-	WindowsHandle m_biosMapping;
-	WindowsSectionView m_biosBase;
 	std::optional<MappedAddressRange> m_biosMainAddressRange;
-#if defined(RAM_FILE)
-	WindowsHandle m_ramFile;
-	WindowsHandle m_ramMapping;
-	WindowsSectionView m_ramBase;
-#else
 	WindowsMemoryRegion m_ram;
-#endif
 	std::optional<MappedAddressRange> m_ramAddressRange;
 	WindowsMemoryRegion m_vram;
 	std::optional<MappedAddressRange> m_vramAddressRange;

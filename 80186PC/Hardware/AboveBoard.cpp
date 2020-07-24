@@ -45,7 +45,7 @@ uint8_t AboveBoard::read8(uint64_t address, uint8_t mask) {
 		return 0;
 
 	case 0x0F:
-		return (m_reg7Field0 + 3) & 7;
+		return ((m_reg7Field0 + 3) & 7);
 
 	default:
 		if ((repackedAddress & 0x08) == 0) {

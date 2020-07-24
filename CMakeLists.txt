@@ -7,4 +7,4 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/bin)
 find_package(SDL2 REQUIRED)
 
 add_subdirectory(80186PC)
-add_subdirectory(bios)
+

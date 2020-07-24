@@ -3,6 +3,8 @@
 #include <UI/Keyboard.h>
 #include <UI/Mouse.h>
 
+#include <Utils/WindowsResources.h>
+
 #include <SDL.h>
 
 #include <stdexcept>
@@ -61,7 +63,18 @@ SDLUI::SDLUI() : m_videoAdapter(nullptr), m_keyboard(nullptr), m_mouse(nullptr),
 		SDL_SetPaletteColors(palette.get(), colors, 0, 2);
 	}
 
-	auto font = SDL_LoadBMP("C:\\projects\\80186PC\\bios\\font.bmp");
+	const void* fontBmpData;
+	size_t fontBmpDataSize;
+
+	getRCDATA(2, &fontBmpData, &fontBmpDataSize);
+
+	auto fontRW = SDL_RWFromConstMem(fontBmpData, fontBmpDataSize);
+	if(fontRW == nullptr)
+		throw std::runtime_error("SDL_RWFromMem failed: " + std::string(SDL_GetError()));;
+
+	auto font = SDL_LoadBMP_RW(fontRW, 0);
+	SDL_RWclose(fontRW);
+
 	if (!font) {
 		throw std::runtime_error("SDL_LoadBMP failed: " + std::string(SDL_GetError()));;
 	}
@@ -71,40 +84,7 @@ SDLUI::SDLUI() : m_videoAdapter(nullptr), m_keyboard(nullptr), m_mouse(nullptr),
 SDLUI::~SDLUI() {
 	SDL_Quit();
 }
-/*
-void SDLUI::attachRAM(VideoRAM* vram, const void* base, size_t size) {
-	if (size != 128 * 1024)
-		throw std::logic_error("expected exactly 128 KiB of VRAM");
-	
-	m_vram = vram;
 
-	m_screenSurface.reset(SDL_CreateRGBSurfaceWithFormatFrom(
-		const_cast<void *>(base), 1024, 1024, 1, 128, SDL_PIXELFORMAT_INDEX1LSB
-	));
-
-	if (!m_screenSurface) {
-		throw std::runtime_error("SDL_CreateRGBSurfaceWithFormatFrom failed: " + std::string(SDL_GetError()));
-	}
-
-	SDL_SetSurfacePalette(m_screenSurface.get(), m_screenPalette.get());
-}
-
-void SDLUI::ramDirty(VideoRAM *vram) {
-	(void)vram;
-
-	SDL_Event event;
-	SDL_zero(event);
-	event.type = m_dirtyVRAMEvent;
-	SDL_PushEvent(&event);
-}
-
-void SDLUI::fetchState(uint16_t& x, uint16_t& y, uint8_t& buttons) {
-	x = m_mouseX.load();
-	y = m_mouseY.load();
-
-	buttons = m_mouseButtons.load();
-}
-*/
 void SDLUI::run() {
 	SDL_Event ev;
 
@@ -113,8 +93,6 @@ void SDLUI::run() {
 
 	while(true) {
 		while(SDL_PollEvent(&ev)) {
-			//printf("SDL event type: %u\n", ev.type);
-
 			switch(ev.type) {
 			case SDL_QUIT:
 				return;
@@ -133,7 +111,6 @@ void SDLUI::run() {
 					}
 				} else { 
 					updateMouseButton(ev.button);
-					//m_mouseButtons.fetch_or(1 << ev.button.button);
 				}
 				break;
 
@@ -141,7 +118,6 @@ void SDLUI::run() {
 			case SDL_MOUSEBUTTONUP:
 				if (m_mouseCaptured) {
 					updateMouseButton(ev.button);
-					//m_mouseButtons.fetch_and(~(1 << ev.button.button));
 				}
 					
 				break;
@@ -161,17 +137,6 @@ void SDLUI::run() {
 				break;
 			}
 		}
-
-#if 0
-		if (m_vram->markClean()) {
-
-			auto surface = SDL_GetWindowSurface(m_window.get());
-			
-			SDL_BlitSurface(m_screenSurface.get(), nullptr, surface, nullptr);
-			
-			SDL_UpdateWindowSurface(m_window.get());
-		}
-#endif
 
 		auto video = m_videoAdapter.load();
 		if (video) {
@@ -342,19 +307,6 @@ void SDLUI::run() {
 
 	} 
 }
-#if 0
-bool SDLUI::getKeyboardEvent(uint8_t& ev) {
-	std::unique_lock<std::mutex> locker(m_keyboardQueueMutex);
-
-	if (m_keyboardQueue.empty())
-		return false;
-
-	ev = m_keyboardQueue.front();
-	m_keyboardQueue.pop_front();
-
-	return ev;
-}
-#endif
 
 void SDLUI::linearizeHerculesVideo(const VideoAdapter::AdapterConfiguration& config, unsigned char* data) {
 	unsigned int pitch = config.widthPixels / 8;
